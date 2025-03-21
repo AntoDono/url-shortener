@@ -8,7 +8,8 @@
     "dev": "refine dev",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "refine": "refine",
-    "start": "refine start"
+    "start": "refine start",
+    "serve": "node server.js"
   },
   "dependencies": {
     "@refinedev/antd": "^5.45.3",
