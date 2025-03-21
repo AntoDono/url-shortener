@@ -79,7 +79,6 @@ export default function App() {
                   <Route path="/links" element={<Outlet />}>
                       <Route index element={<ListLinks />} />
                       <Route path="create" element={<CreateLink />} />
-                      {/* <Route path=":id" element={<ProductShow />} /> */}
                       <Route path="/links/edit/:id" element={<EditLink />} />
                   </Route>
                   <Route path="*" element={<ErrorComponent />} />
