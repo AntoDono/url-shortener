@@ -298,11 +298,15 @@ app.delete('/users/:id', async (req, res) => {
 });
 
 // GET all links
-app.get('/links', async (req, res) => {
+app.get('/links', authenticateSession, async (req, res) => {
   try {
+    // find user id from active sessions
+    const userId = activeSessions[req.headers.authorization].userId;
+
     const { data, error } = await supabase
       .from('links')
-      .select('*');
+      .select('*')
+      .eq('user_id', userId);
     
     if (error) throw error;
     
@@ -312,8 +316,32 @@ app.get('/links', async (req, res) => {
   }
 });
 
+app.get('/links/:id', async (req, res) => {
+  console.log("GET link by id");
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('links')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+    // Only update the counter after we've confirmed the link exists
+  
+    res.status(200).json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET link by alias
-app.get('/links/:alias', async (req, res) => {
+app.get('/links-alias/:alias', async (req, res) => {
+  console.log("GET link by alias");
   try {
     const { alias } = req.params;
     const { data, error } = await supabase
@@ -327,11 +355,17 @@ app.get('/links/:alias', async (req, res) => {
     if (!data) {
       return res.status(404).json({ error: 'Link not found' });
     }
+
+    let access_log = [...data.access_log, {
+      ip: req.ip,
+      user_agent: req.headers['user-agent'],
+      timestamp: new Date()
+    }];
     
     // Only update the counter after we've confirmed the link exists
     await supabase
       .from('links')
-      .update({ accessed: (data.accessed || 0) + 1 })
+      .update({ accessed: (data.accessed || 0) + 1, access_log: access_log })
       .eq('id', data.id);
     
     res.status(200).json(data);

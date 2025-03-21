@@ -47,7 +47,7 @@ export const ListLinks = () => {
   } = useTable({
     resource: "links",
     pagination: { current: 1, pageSize: 10 },
-    sorters: { initial: [{ field: "created_at", order: "desc" }] },
+    sorters: { initial: [{ field: "created_at", order: "desc" }] }
   });
 
   // Function to copy link to clipboard
@@ -78,9 +78,7 @@ export const ListLinks = () => {
       render: (alias: string) => (
         <Flex justify={justify} align={alignItems}>
           <Tag color="blue">
-            <a href={`/r/${alias}`} target="_blank" rel="noopener noreferrer">
-              {alias}
-            </a>
+            {alias}
           </Tag>
         </Flex>
       ),
@@ -91,9 +89,7 @@ export const ListLinks = () => {
       key: "url",
       render: (url: string) => (
         <Tooltip title={url}>
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            {url.length > 50 ? `${url.substring(0, 50)}...` : url}
-          </a>
+          <a >{url.length > 50 ? `${url.substring(0, 50)}...` : url}</a>
         </Tooltip>
       ),
     },
@@ -120,24 +116,43 @@ export const ListLinks = () => {
             type="primary"
             icon={<CopyOutlined />}
             size="small"
-            onClick={() => copyToClipboard(record.alias)}
+            onClick={(e) => {
+              e.stopPropagation();
+              copyToClipboard(record.alias);
+            }}
           >
             Copy
+          </Button>
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/links/view/${record.id}`);
+            }}
+          >
+            Show
           </Button>
           <Button
             type="default"
             icon={<EditOutlined />}
             size="small"
-            onClick={() => window.location.href = `/links/edit/${record.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/links/edit/${record.id}`);
+            }}
           >
             Edit
           </Button>
           <Button
-            type="link"
+            type="default"
             icon={<LinkOutlined />}
             size="small"
-            href={`/r/${record.alias}`}
-            target="_blank"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`${window.location.origin}/r/${record.alias}`, '_blank');
+            }}
           >
             Visit
           </Button>
@@ -164,6 +179,12 @@ export const ListLinks = () => {
         columns={columns}
         rowKey="id"
         loading={isLoading}
+        onRow={(record) => {
+          return {
+            onClick: () => navigate(`/links/view/${record.id}`),
+            style: { cursor: 'pointer' }
+          };
+        }}
         pagination={{
           current: current,
           pageSize: pageSize,

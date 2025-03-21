@@ -32,7 +32,7 @@ export const EditLink = () => {
     
   });
 
-  const record = queryResult.data?.data;
+  const record = queryResult?.data?.data;
   
   // Function to validate URL
   const validateUrl = (_: any, value: string) => {

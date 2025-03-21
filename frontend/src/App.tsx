@@ -2,6 +2,7 @@ import { Refine, Authenticated } from "@refinedev/core";
 import dataProvider from "@refinedev/simple-rest";
 import routerProvider, { NavigateToResource } from "@refinedev/react-router";
 import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router";
+import axios from "axios";
 
 import { ErrorComponent, RefineThemes, ThemedLayoutV2, useNotificationProvider, AuthPage, ThemedTitleV2 } from "@refinedev/antd";
 import { App as AntdApp, ConfigProvider } from "antd";
@@ -12,19 +13,32 @@ import "@refinedev/antd/dist/reset.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+// Create an axios instance with auth headers
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("my_access_token");
+  if (token) {
+    config.headers["Authorization"] = token;
+  }
+  return config;
+});
+
+// Create a custom data provider using the axios instance
+const customDataProvider = dataProvider(API_URL, axiosInstance);
 
 // import { ProductList, ProductShow, ProductEdit, ProductCreate } from "./pages/products";
 import { ListLinks } from "./links/list";
 import { EditLink } from "./links/edit";
 import { CreateLink } from "./links/create";
 import { RedirectPage } from "./links/redirect";
-
+import { LinkShow } from "./links/show";
+import { LinkOutlined } from "@ant-design/icons";
 export default function App() {
   const themelayout = () =>{
     return (
       <ThemedLayoutV2
         Title={() => (
-          <ThemedTitleV2 text="URL Shortener" collapsed={false} />
+          <ThemedTitleV2 icon={<LinkOutlined />} text="URL Shortener" collapsed={false} />
         )}
       >
         <Outlet />
@@ -38,14 +52,14 @@ export default function App() {
         <AntdApp>
           <Refine
             routerProvider={routerProvider}
-            dataProvider={dataProvider(API_URL)}
+            dataProvider={customDataProvider}
             authProvider={authProvider}
             notificationProvider={useNotificationProvider}
             resources={[
               {
                 name: "Links",
                 list: "/links",
-                show: "/r/:alias",
+                show: "/links/view/:id",
                 edit: EditLink,
                 create: CreateLink
               }
@@ -55,6 +69,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/links" />} />
               <Route path="/r/:alias" element={<RedirectPage />} />
+              <Route path="/links/view/:id" element={<LinkShow />} />
               <Route element={<Authenticated key="authenticated" fallback={<Navigate to="/login" />}><Outlet /></Authenticated>}>
                 <Route
                   element={
@@ -71,11 +86,27 @@ export default function App() {
                 </Route>
               </Route>
               <Route element={
-                <Authenticated key="auth-pages" fallback={<Outlet />}><NavigateToResource resource="link" /></Authenticated>}>
-                <Route path="/login" element={<AuthPage type="login" title="URL Shortener" />} />
-                <Route path="/register" element={<AuthPage type="register" title="URL Shortener" />} />
-                <Route path="/forgot-password" element={<AuthPage type="forgotPassword" title="URL Shortener" />} />
-                <Route path="/reset-password" element={<AuthPage type="updatePassword" title="URL Shortener" />} />
+                <div> 
+                  <div style={{
+                    display: "flex", 
+                    flexDirection: "row", 
+                    alignItems: "center", 
+                    justifyContent: "center", 
+                    marginTop: "100px", 
+                    position: "absolute",
+                    left: "52%",  // This is needed for proper centering with transform
+                    transform: "translate(-50%, -50%)", 
+                    scale: "1.5"
+                  }}>
+                    <ThemedTitleV2 icon={<LinkOutlined style={{ fontSize: "24px" }} />} text="URL Shortener" collapsed={false} />
+                  </div>
+                  <Authenticated key="auth-pages" fallback={<Outlet />}><NavigateToResource resource="link" /></Authenticated>  
+                </div>
+              }>
+                <Route path="/login" element={<AuthPage type="login" title="" />} />
+                <Route path="/register" element={<AuthPage type="register" title="" />} />
+                {/* <Route path="/forgot-password" element={<AuthPage type="forgotPassword" title="" />} /> */}
+                {/* <Route path="/reset-password" element={<AuthPage type="updatePassword" title="" />} /> */}
                 <Route path="*" element={<ErrorComponent />} />
               </Route>
             </Routes>

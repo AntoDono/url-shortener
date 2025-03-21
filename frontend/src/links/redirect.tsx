@@ -4,6 +4,8 @@ import { Typography, Spin, Card } from "antd";
 
 const { Title, Text } = Typography;
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 export const RedirectPage = () => {
   const { alias } = useParams();
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +21,7 @@ export const RedirectPage = () => {
       console.log("Fetching original URL");
       try {
         // Fetch the original URL from the API using the alias
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/links/${alias}`, {
+        const response = await fetch(`${API_URL}/links-alias/${alias}`, {
           headers: {
             'Accept': 'application/json'
           }
