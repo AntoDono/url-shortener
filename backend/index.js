@@ -596,9 +596,10 @@ app.get('/links/:id', async (req, res) => {
 });
 
 // GET link by alias
-app.get('/links-alias/:alias', async (req, res) => {
+app.post('/links-alias/:alias', async (req, res) => {
   try {
     const { alias } = req.params;
+    const { ip } = req.body;
     const { data, error } = await supabase
       .from('links')
       .select('*')
@@ -612,7 +613,7 @@ app.get('/links-alias/:alias', async (req, res) => {
     }
 
     let access_log = [...data.access_log, {
-      ip: req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip,
+      ip: ip,
       user_agent: req.headers['user-agent'],
       timestamp: new Date()
     }];
