@@ -51,20 +51,17 @@ export const ListLinks = () => {
     ],
   });
 
-  // Function to copy link to clipboard
   const copyToClipboard = (alias: string) => {
     const fullUrl = `${window.location.origin}/r/${alias}`;
     navigator.clipboard.writeText(fullUrl);
     message.success("Link copied to clipboard!");
   };
 
-  // Function to format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString();
   };
 
-  // Define columns for Ant Design Table
   const columns: ColumnsType<LinkType> = [
     {
       title: "ID",

@@ -5,11 +5,9 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Email configuration
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -18,7 +16,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Generate verification token
 function generateVerificationToken() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -49,7 +46,7 @@ async function sendVerificationEmail(email, token) {
   }
 }
 
-// CORS configuration
+// CORS config
 const corsOptions = {
   origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -63,10 +60,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Handle OPTIONS preflight requests explicitly
 app.options('*', cors(corsOptions));
 
-// Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -74,12 +69,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Session storage
 const activeSessions = {}; // { sessionKey: { userId, expires } }
 
-// Session expiration time in milliseconds (24 hours)
+// Session expiration time in milliseconds 
 const SESSION_EXPIRATION = 24 * 60 * 60 * 1000;
 
 // Encryption functions
 function encryptPassword(password) {
-  // Use a random initialization vector for better security
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(process.env.DECODE_KEY, 'salt', 32);
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
@@ -87,12 +81,10 @@ function encryptPassword(password) {
   let encrypted = cipher.update(password, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   
-  // Return both the IV and encrypted password
   return iv.toString('hex') + ':' + encrypted;
 }
 
 function decryptPassword(encryptedPassword) {
-  // Split the IV and encrypted parts
   const parts = encryptedPassword.split(':');
   const iv = Buffer.from(parts[0], 'hex');
   const encrypted = parts[1];
@@ -105,7 +97,6 @@ function decryptPassword(encryptedPassword) {
   return decrypted;
 }
 
-// Generate a random session key
 function generateSessionKey() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -120,22 +111,19 @@ function authenticateSession(req, res, next) {
   
   const session = activeSessions[sessionKey];
   
-  // Check if session has expired
   if (session.expires < Date.now()) {
     delete activeSessions[sessionKey];
     return res.status(401).json({ error: 'Unauthorized: Session expired' });
   }
   
-  // Add userId to request for use in route handlers
   req.userId = session.userId;
   
-  // Extend session expiration
   session.expires = Date.now() + SESSION_EXPIRATION;
   
   next();
 }
 
-// Clean up expired sessions periodically
+// clear internal sessions every hour
 setInterval(() => {
   const now = Date.now();
   Object.keys(activeSessions).forEach(key => {
@@ -143,7 +131,7 @@ setInterval(() => {
       delete activeSessions[key];
     }
   });
-}, 60 * 60 * 1000); // Clean up every hour
+}, 60 * 60 * 1000); 
 
 // Root route
 app.get('/', (req, res) => {
@@ -159,7 +147,6 @@ app.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
-    // Check if user already exists
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('*')
@@ -172,14 +159,11 @@ app.post('/signup', async (req, res) => {
       return res.status(409).json({ error: 'User with this email already exists' });
     }
     
-    // Generate verification token
     const verificationToken = generateVerificationToken();
-    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
     
-    // Encrypt password
     const encryptedPassword = encryptPassword(password);
     
-    // Insert new user with verification token
     const { data, error } = await supabase
       .from('users')
       .insert({
@@ -194,11 +178,9 @@ app.post('/signup', async (req, res) => {
     
     if (error) throw error;
     
-    // Send verification email
     const emailSent = await sendVerificationEmail(email, verificationToken);
     
     if (!emailSent) {
-      // If email fails to send, delete the user
       await supabase
         .from('users')
         .delete()
@@ -207,7 +189,6 @@ app.post('/signup', async (req, res) => {
       return res.status(500).json({ error: 'Failed to send verification email' });
     }
     
-    // Return user data without sensitive information
     const userData = { ...data[0] };
     delete userData.password;
     delete userData.verification_token;
@@ -228,7 +209,6 @@ app.get('/verify-email/:token', async (req, res) => {
   try {
     const { token } = req.params;
     
-    // Find user with matching token
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -241,12 +221,10 @@ app.get('/verify-email/:token', async (req, res) => {
       return res.status(404).json({ error: 'Invalid verification token' });
     }
     
-    // Check if token has expired
     if (new Date(user.token_expiry) < new Date()) {
       return res.status(400).json({ error: 'Verification token has expired' });
     }
     
-    // Update user verification status
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -274,7 +252,6 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
-    // Get user by email
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -287,7 +264,6 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    // Check if email is verified
     if (!user.is_verified) {
       return res.status(403).json({ 
         error: 'Please verify your email before logging in',
@@ -295,21 +271,19 @@ app.post('/login', async (req, res) => {
       });
     }
     
-    // Decrypt stored password and compare
     const decryptedPassword = decryptPassword(user.password);
     
     if (password !== decryptedPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    // Generate session key
     const sessionKey = generateSessionKey();
     activeSessions[sessionKey] = {
       userId: user.id,
       expires: Date.now() + SESSION_EXPIRATION
     };
     
-    // Return user data without password
+    // Return user data without sensitive information
     const userData = { ...user };
     delete userData.password;
     delete userData.verification_token;
@@ -335,7 +309,6 @@ app.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
     
-    // Get user by email
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -345,17 +318,14 @@ app.post('/forgot-password', async (req, res) => {
     if (error) throw error;
     
     if (!user) {
-      // Return success even if user doesn't exist to prevent email enumeration
       return res.status(200).json({ 
         message: 'If an account exists with this email, you will receive password reset instructions.' 
       });
     }
     
-    // Generate reset token
     const resetToken = generateVerificationToken();
     const tokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour from now
     
-    // Update user with reset token
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -406,7 +376,6 @@ app.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Token and password are required' });
     }
     
-    // Find user with matching token
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -419,21 +388,20 @@ app.post('/reset-password', async (req, res) => {
       return res.status(404).json({ error: 'Invalid reset token' });
     }
     
-    // Compare the expiry with current time directly
     const expiry = new Date(user.reset_token_expiry);
     const now = new Date();
-    expiry.setHours(expiry.getHours() + 23); // Add 1 hour
-    expiry.setMinutes(expiry.getMinutes() + 59); // Add 1 hour
-    expiry.setSeconds(expiry.getSeconds() + 59); // Add 1 hour
+
+    // because supabase only keeps track of the date, we will just asssume expiring is like the end of day
+    expiry.setHours(expiry.getHours() + 23);
+    expiry.setMinutes(expiry.getMinutes() + 59);
+    expiry.setSeconds(expiry.getSeconds() + 59);
 
     if (now > expiry) {
       return res.status(400).json({ error: 'Reset token has expired' });
     }
     
-    // Encrypt new password
     const encryptedPassword = encryptPassword(password);
     
-    // Update user password and clear reset token
     const { error: updateError } = await supabase
       .from('users')
       .update({
@@ -456,7 +424,6 @@ app.post('/reset-password', async (req, res) => {
 app.post('/logout', authenticateSession, (req, res) => {
   const sessionKey = req.headers.authorization;
   
-  // Delete the session
   delete activeSessions[sessionKey];
   
   res.status(200).json({ message: 'Logged out successfully' });
@@ -537,7 +504,6 @@ app.put('/users/:id', async (req, res) => {
   }
 });
 
-// DELETE user
 app.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -557,7 +523,6 @@ app.delete('/users/:id', async (req, res) => {
 // GET all links
 app.get('/links', authenticateSession, async (req, res) => {
   try {
-    // find user id from active sessions
     const userId = activeSessions[req.headers.authorization].userId;
 
     const { data, error } = await supabase
@@ -587,7 +552,6 @@ app.get('/links/:id', async (req, res) => {
     if (!data) {
       return res.status(404).json({ error: 'Link not found' });
     }
-    // Only update the counter after we've confirmed the link exists
   
     res.status(200).json(data);
   } catch (error) {
@@ -595,7 +559,7 @@ app.get('/links/:id', async (req, res) => {
   }
 });
 
-// GET link by alias
+// GET link by alias - use for redirecting, since we need to get the OG url
 app.post('/links-alias/:alias', async (req, res) => {
   try {
     const { alias } = req.params;
@@ -618,7 +582,7 @@ app.post('/links-alias/:alias', async (req, res) => {
       timestamp: new Date()
     }];
     
-    // Only update the counter after we've confirmed the link exists
+    // increment the counter and add to access log
     await supabase
       .from('links')
       .update({ accessed: (data.accessed || 0) + 1, access_log: access_log })
@@ -630,7 +594,7 @@ app.post('/links-alias/:alias', async (req, res) => {
   }
 });
 
-// POST new link
+// get all links created by the user
 app.post('/links', authenticateSession, async (req, res) => {
   try {
     const userId = req.userId;
@@ -653,12 +617,12 @@ app.post('/links', authenticateSession, async (req, res) => {
   }
 });
 
-// PUT update link
+// update link by the id
 app.patch('/links/:id', authenticateSession, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId;
-    // Check if the link belongs to the user
+
     const { data: linkData, error: linkError } = await supabase
       .from('links')
       .select('*')
@@ -675,7 +639,6 @@ app.patch('/links/:id', authenticateSession, async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to modify this link' });
     }
     
-    // Update the link
     if (req.body == {}) {
       return res.status(400).json({ error: 'No fields to update' });
     }
@@ -704,7 +667,6 @@ app.delete('/links/:id', authenticateSession, async (req, res) => {
     const { id } = req.params;
     const userId = req.userId;
     
-    // Check if the link belongs to the user
     const { data: linkData, error: linkError } = await supabase
       .from('links')
       .select('*')
@@ -721,7 +683,6 @@ app.delete('/links/:id', authenticateSession, async (req, res) => {
       return res.status(403).json({ error: 'You do not have permission to delete this link' });
     }
     
-    // Delete the link
     const { error } = await supabase
       .from('links')
       .delete()
@@ -740,7 +701,6 @@ app.post('/get-links', authenticateSession, async (req, res) => {
   try {
     const userId = req.userId;
     
-    // Get all links for this user
     const { data, error } = await supabase
       .from('links')
       .select('*')
@@ -763,7 +723,7 @@ app.get('/session', authenticateSession, (req, res) => {
   });
 });
 
-// Create a shortened link
+// Create Link
 app.post('/create-link', authenticateSession, async (req, res) => {
   try {
     const userId = req.userId;
@@ -773,10 +733,9 @@ app.post('/create-link', authenticateSession, async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
     
-    // Generate an alias if custom_alias is not provided
     const alias = custom_alias || generateShortUrl();
     
-    // Check if the alias already exists
+    // check if existing alias
     if (custom_alias) {
       const { data: existingLink, error: checkError } = await supabase
         .from('links')
@@ -814,7 +773,7 @@ app.post('/create-link', authenticateSession, async (req, res) => {
   }
 });
 
-// Generate a random short URL
+// Generate a random short URL - only used if no alias is provided
 function generateShortUrl() {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const length = 6;
@@ -834,7 +793,7 @@ app.get('/link-stats/:alias', authenticateSession, async (req, res) => {
     const { alias } = req.params;
     const userId = req.userId;
     
-    // Find the link
+    // Find link
     const { data: link, error } = await supabase
       .from('links')
       .select('*')
