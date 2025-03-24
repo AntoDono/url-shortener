@@ -574,7 +574,6 @@ app.get('/links', authenticateSession, async (req, res) => {
 });
 
 app.get('/links/:id', async (req, res) => {
-  console.log("GET link by id");
   try {
     const { id } = req.params;
     const { data, error } = await supabase
@@ -598,7 +597,6 @@ app.get('/links/:id', async (req, res) => {
 
 // GET link by alias
 app.get('/links-alias/:alias', async (req, res) => {
-  console.log("GET link by alias");
   try {
     const { alias } = req.params;
     const { data, error } = await supabase
