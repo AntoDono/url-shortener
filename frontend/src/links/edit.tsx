@@ -6,7 +6,6 @@ import useRouterProvider from "../providers/router-provider";
 
 const { Title } = Typography;
 
-// Define the link interface
 interface Link {
   id: number;
   alias: string;
@@ -20,7 +19,7 @@ export const EditLink = () => {
   const { id } = useParams<{ id: string }>();
   const { list } = useRouterProvider();
   
-  // Fetch link data
+  // link data
   const { data, isLoading: isFetchLoading } = useOne<Link>({
     resource: "links",
     id: id || "",
@@ -31,7 +30,6 @@ export const EditLink = () => {
 
   const link = data?.data;
   
-  // Function to validate URL
   const validateUrl = (_: any, value: string) => {
     if (!value) {
       return Promise.reject(new Error('Please enter a URL'));

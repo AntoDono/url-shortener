@@ -6,20 +6,11 @@ A full-stack web application for shortening url created with Refine
 
 This URL shortener application allows users to create custom short URLs for long links. The system tracks usage statistics for each shortened link and provides a simple dashboard to manage all your links in one place.
 
-## Features
-
-- **User Authentication**: Secure signup and login functionality
-- **Custom Aliases**: Create personalized short URLs with custom aliases
-- **Link Management**: Create, view, edit, and delete your shortened links
-- **Usage Analytics**: Track the number of clicks for each shortened link
-- **Copy to Clipboard**: Easily copy shortened URLs with a single click
-- **Responsive UI**: Modern, clean interface built with Ant Design
-
 ## Tech Stack
 
 ### Frontend
 - React with TypeScript
-- [Refine](https://refine.dev/) framework for rapid development
+- [Refine](https://refine.dev/) framework
 - Ant Design component library
 - React Router for navigation
 
@@ -46,8 +37,7 @@ url-shortener/
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- npm or yarn package manager
+- Node.js ^16.0.0
 - Supabase account (for database)
 
 ## Setup Instructions

@@ -5,7 +5,6 @@ import useRouterProvider from "../providers/router-provider";
 
 const { Title } = Typography;
 
-// Define the link interface
 interface Link {
   id?: number;
   alias: string;
@@ -19,8 +18,7 @@ export const CreateLink = () => {
   const { list } = useRouterProvider();
   
   const { mutate, isLoading, isSuccess, error } = useCreate<Link>();
-  
-  // Function to validate URL
+
   const validateUrl = (_: any, value: string) => {
     if (!value) {
       return Promise.reject(new Error('Please enter a URL'));
@@ -34,7 +32,6 @@ export const CreateLink = () => {
     }
   };
   
-  // Handle form submission
   const handleSubmit = (values: { url: string; alias: string }) => {
     mutate({
       resource: "links",
@@ -42,13 +39,12 @@ export const CreateLink = () => {
     });
   };
 
-  // Handle success with useEffect to only run when success state changes
   useEffect(() => {
     if (isSuccess) {
       message.success('Link created successfully');
-      // Use a timeout to redirect after successful creation
+
+      // redirect delay to links page
       const timer = setTimeout(() => list("links"), 1000);
-      // Clean up the timeout if component unmounts before timeout completes
       return () => clearTimeout(timer);
     }
   }, [isSuccess, list]);

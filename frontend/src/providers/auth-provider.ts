@@ -2,7 +2,6 @@ import { AuthProvider } from "@refinedev/core";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-// Helper function to get headers with authorization
 const getAuthHeaders = () => {
   const token = localStorage.getItem("my_access_token");
   return {
@@ -38,7 +37,7 @@ export const authProvider: AuthProvider = {
     localStorage.removeItem("my_access_token");
     return { success: true };
   },
-  // login method receives an object with all the values you've provided to the useLogin hook.
+
   login: async ({ email, password }) => {
     const response = await fetch(
       `${API_URL}/login`,
@@ -86,7 +85,7 @@ export const authProvider: AuthProvider = {
       return { authenticated: false };
     }
 
-    // Verify token is still valid by checking session
+    // gets the session
     const response = await fetch(`${API_URL}/session`, {
       headers: {
         Authorization: token,
@@ -112,7 +111,7 @@ export const authProvider: AuthProvider = {
 
     return { error };
   },
-  // optional methods
+
   register: async (params) => {
     const { email, password } = params;
     

@@ -34,7 +34,7 @@ export const VerifyEmail: React.FC = () => {
           hasVerified.current = true;
           setStatus('success');
           setMessage('Email verified successfully! You can now log in.');
-          // Redirect to login after 3 seconds
+          // redirect delay
           setTimeout(() => {
             navigate('/login');
           }, 3000);

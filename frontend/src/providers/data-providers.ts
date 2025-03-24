@@ -2,7 +2,6 @@ import { DataProvider } from "@refinedev/core";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-// Helper function to get default headers including Authorization token
 const getHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

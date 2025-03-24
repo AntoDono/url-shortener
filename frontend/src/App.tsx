@@ -24,10 +24,9 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-// Create a custom data provider using the axios instance
+// custom data provider
 const customDataProvider = dataProvider(API_URL, axiosInstance);
 
-// import { ProductList, ProductShow, ProductEdit, ProductCreate } from "./pages/products";
 import { ListLinks } from "./links/list";
 import { EditLink } from "./links/edit";
 import { CreateLink } from "./links/create";
@@ -94,7 +93,7 @@ export default function App() {
                     justifyContent: "center", 
                     marginTop: "100px", 
                     position: "absolute",
-                    left: "52%",  // This is needed for proper centering with transform
+                    left: "52%", 
                     transform: "translate(-50%, -50%)", 
                     scale: "1.5"
                   }}>
