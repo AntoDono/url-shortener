@@ -70,6 +70,9 @@ url-shortener/
    SUPABASE_KEY=your_supabase_key
    PORT=3001
    DECODE_KEY=your_secret_key_for_password_encryption
+   GMAIL=your_gmail
+   GOOGLE_APP_PASSWORD=your_gmail_app_password
+   FRONTEND_URL=the_frontend_url
    ```
 
 4. Start the backend server:
