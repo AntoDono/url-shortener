@@ -1,9 +1,9 @@
-import { useTable } from "@refinedev/core";
+import { useList } from "@refinedev/core";
 import { Table, Button, Typography, Space, Tag, Tooltip, message, Flex, FlexProps } from "antd";
 import { CopyOutlined, EditOutlined, LinkOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table/interface";
 import { useState } from 'react';
-import { useNavigate } from "react-router";
+import useRouterProvider from "../providers/router-provider";
 
 const { Title } = Typography;
 
@@ -31,23 +31,24 @@ interface LinkType {
 }
 
 export const ListLinks = () => {
-  // Move useState hooks inside the component
+  const [current, setCurrent] = useState(1);
+  const pageSize = 10;
   const [justify, setJustify] = useState<FlexProps['justify']>(justifyOptions[1]);
   const [alignItems, setAlignItems] = useState<FlexProps['align']>(alignOptions[1]);
-  const navigate = useNavigate();
+  const { show, edit, create } = useRouterProvider();
 
-  const {
-    tableQuery: { data, isLoading },
-    current,
-    setCurrent,
-    pageCount,
-    pageSize,
-    sorters,
-    setSorters,
-  } = useTable({
+  const { data, isLoading } = useList<LinkType>({
     resource: "links",
-    pagination: { current: 1, pageSize: 10 },
-    sorters: { initial: [{ field: "created_at", order: "desc" }] }
+    pagination: {
+      current,
+      pageSize,
+    },
+    sorters: [
+      {
+        field: "created_at",
+        order: "desc",
+      },
+    ],
   });
 
   // Function to copy link to clipboard
@@ -62,7 +63,6 @@ export const ListLinks = () => {
     const date = new Date(dateString);
     return date.toLocaleString();
   };
-
 
   // Define columns for Ant Design Table
   const columns: ColumnsType<LinkType> = [
@@ -89,7 +89,7 @@ export const ListLinks = () => {
       key: "url",
       render: (url: string) => (
         <Tooltip title={url}>
-          <a >{url.length > 50 ? `${url.substring(0, 50)}...` : url}</a>
+          <a>{url.length > 50 ? `${url.substring(0, 50)}...` : url}</a>
         </Tooltip>
       ),
     },
@@ -129,7 +129,7 @@ export const ListLinks = () => {
             size="small"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/links/view/${record.id}`);
+              show("links", record.id);
             }}
           >
             Show
@@ -140,7 +140,7 @@ export const ListLinks = () => {
             size="small"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/links/edit/${record.id}`);
+              edit("links", record.id);
             }}
           >
             Edit
@@ -168,20 +168,20 @@ export const ListLinks = () => {
         <Button 
           type="primary" 
           icon={<PlusOutlined />}
-          onClick={() => navigate('/links/create')}
+          onClick={() => create("links")}
         >
           Create New Link
         </Button>
       </Flex>
       
       <Table<LinkType>
-        dataSource={data?.data as LinkType[]}
+        dataSource={data?.data}
         columns={columns}
         rowKey="id"
         loading={isLoading}
         onRow={(record) => {
           return {
-            onClick: () => navigate(`/links/view/${record.id}`),
+            onClick: () => show("links", record.id),
             style: { cursor: 'pointer' }
           };
         }}

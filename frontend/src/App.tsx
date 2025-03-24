@@ -4,10 +4,11 @@ import routerProvider, { NavigateToResource } from "@refinedev/react-router";
 import { BrowserRouter, Route, Routes, Outlet, Navigate } from "react-router";
 import axios from "axios";
 
-import { ErrorComponent, RefineThemes, ThemedLayoutV2, useNotificationProvider, AuthPage, ThemedTitleV2 } from "@refinedev/antd";
+import { ErrorComponent, RefineThemes, ThemedLayoutV2, useNotificationProvider, AuthPage, ThemedTitleV2, Title } from "@refinedev/antd";
 import { App as AntdApp, ConfigProvider } from "antd";
 
 import { authProvider } from "./providers/auth-provider";
+import { VerifyEmail } from "./pages/verify-email";
 
 import "@refinedev/antd/dist/reset.css";
 
@@ -104,8 +105,9 @@ export default function App() {
               }>
                 <Route path="/login" element={<AuthPage type="login" title="" />} />
                 <Route path="/register" element={<AuthPage type="register" title="" />} />
-                {/* <Route path="/forgot-password" element={<AuthPage type="forgotPassword" title="" />} /> */}
-                {/* <Route path="/reset-password" element={<AuthPage type="updatePassword" title="" />} /> */}
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/forgot-password" element={<AuthPage type="forgotPassword" title="" />} />
+                <Route path="/reset-password" element={<AuthPage type="updatePassword" title="" />} />
                 <Route path="*" element={<ErrorComponent />} />
               </Route>
             </Routes>

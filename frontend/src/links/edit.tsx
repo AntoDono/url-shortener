@@ -1,7 +1,8 @@
-import { useForm } from "@refinedev/core";
+import { useOne, useUpdate } from "@refinedev/core";
 import { Form, Input, Button, Typography, Card, Space, message } from "antd";
-import { useParams, useNavigate } from "react-router";
+import { useParams } from "react-router";
 import { useEffect } from "react";
+import useRouterProvider from "../providers/router-provider";
 
 const { Title } = Typography;
 
@@ -16,23 +17,19 @@ interface Link {
 }
 
 export const EditLink = () => {
-  const params = useParams();
-  const navigate = useNavigate();
-  const linkId = params.id;
+  const { id } = useParams<{ id: string }>();
+  const { list } = useRouterProvider();
   
-  const { onFinish, mutation, queryResult } = useForm<Link>({
-    meta:{
-      headers: {
-        "Authorization": `${localStorage.getItem("my_access_token")}`,
-      },
-    },
-    action: "edit",
+  // Fetch link data
+  const { data, isLoading: isFetchLoading } = useOne<Link>({
     resource: "links",
-    id: linkId as string,
-    
+    id: id || "",
   });
+  
+  // Update link
+  const { mutate, isLoading: isUpdateLoading, isSuccess } = useUpdate<Link>();
 
-  const record = queryResult?.data?.data;
+  const link = data?.data;
   
   // Function to validate URL
   const validateUrl = (_: any, value: string) => {
@@ -47,33 +44,40 @@ export const EditLink = () => {
       return Promise.reject(new Error('Please enter a valid URL'));
     }
   };
+  
+  // Handle form submission
+  const handleSubmit = (values: { url: string; alias: string }) => {
+    mutate({
+      resource: "links",
+      id: id || "",
+      values,
+    });
+  };
 
   // Handle success with useEffect to only run when success state changes
   useEffect(() => {
-    if (mutation.isSuccess) {
+    if (isSuccess) {
       message.success('Link updated successfully');
       // Use a timeout to redirect after successful update
-      const timer = setTimeout(() => navigate('/links'), 1000);
+      const timer = setTimeout(() => list("links"), 1000);
       // Clean up the timeout if component unmounts before timeout completes
       return () => clearTimeout(timer);
     }
-  }, [mutation.isSuccess, navigate]);
+  }, [isSuccess, list]);
 
   return (
     <div style={{ padding: "20px" }}>
       <Title level={2}>Edit Link</Title>
-      { queryResult != null ? (
       <Card>
-        {/* Wait for data to be loaded before rendering the form */}
-        {queryResult.isLoading ? (
+        {isFetchLoading ? (
           <div>Loading...</div>
         ) : (
           <Form 
             layout="vertical" 
-            onFinish={(values) => onFinish(values)}
+            onFinish={handleSubmit}
             initialValues={{
-              url: record?.url,
-              alias: record?.alias,
+              url: link?.url,
+              alias: link?.alias,
             }}
           >
             <Form.Item 
@@ -96,36 +100,27 @@ export const EditLink = () => {
               <Input placeholder="custom-alias" />
             </Form.Item>
             
-            {record && (
+            {link && (
               <div style={{ marginBottom: "16px" }}>
                 <Title level={5}>Statistics</Title>
-                <p>Clicks: {record.accessed || 0}</p>
-                <p>Created: {new Date(record.created_at).toLocaleString()}</p>
+                <p>Clicks: {link.accessed || 0}</p>
+                <p>Created: {new Date(link.created_at).toLocaleString()}</p>
               </div>
             )}
             
             <div style={{ marginTop: "16px" }}>
               <Space>
-                <Button type="primary" htmlType="submit" loading={mutation.isLoading}>
+                <Button type="primary" htmlType="submit" loading={isUpdateLoading}>
                   Update Link
                 </Button>
-                <Button onClick={() => navigate('/links')}>
+                <Button onClick={() => list("links")}>
                   Cancel
                 </Button>
               </Space>
             </div>
-            
-            {mutation.isError && (
-              <div style={{ color: "red", marginTop: "16px" }}>
-                Error: {mutation.error?.message}
-              </div>
-            )}
           </Form>
         )}
       </Card>
-      ) : (
-        <div>Loading...</div>
-      )}
     </div>
   );
 };

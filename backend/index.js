@@ -2,11 +2,52 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Email configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL,
+    pass: process.env.GOOGLE_APP_PASSWORD
+  }
+});
+
+// Generate verification token
+function generateVerificationToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Send verification email
+async function sendVerificationEmail(email, token) {
+  const verificationLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
+  
+  const mailOptions = {
+    from: process.env.GMAIL,
+    to: email,
+    subject: 'Verify Your Email - URL Shortener',
+    html: `
+      <h1>Welcome to URL Shortener!</h1>
+      <p>Please click the link below to verify your email address:</p>
+      <a href="${verificationLink}">${verificationLink}</a>
+      <p>This link will expire in 24 hours.</p>
+      <p>If you didn't create an account, you can safely ignore this email.</p>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    return false;
+  }
+}
 
 // CORS configuration
 const corsOptions = {
@@ -131,28 +172,95 @@ app.post('/signup', async (req, res) => {
       return res.status(409).json({ error: 'User with this email already exists' });
     }
     
+    // Generate verification token
+    const verificationToken = generateVerificationToken();
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+    
     // Encrypt password
     const encryptedPassword = encryptPassword(password);
     
-    // Insert new user
+    // Insert new user with verification token
     const { data, error } = await supabase
       .from('users')
       .insert({
         email,
         password: encryptedPassword,
-        created_at: new Date()
+        created_at: new Date(),
+        verification_token: verificationToken,
+        token_expiry: tokenExpiry,
+        is_verified: false
       })
       .select();
     
     if (error) throw error;
     
-    // Return user data without password
+    // Send verification email
+    const emailSent = await sendVerificationEmail(email, verificationToken);
+    
+    if (!emailSent) {
+      // If email fails to send, delete the user
+      await supabase
+        .from('users')
+        .delete()
+        .eq('id', data[0].id);
+      
+      return res.status(500).json({ error: 'Failed to send verification email' });
+    }
+    
+    // Return user data without sensitive information
     const userData = { ...data[0] };
     delete userData.password;
+    delete userData.verification_token;
+    delete userData.token_expiry;
     
-    res.status(201).json(userData);
+    res.status(201).json({
+      ...userData,
+      message: 'Please check your email to verify your account'
+    });
   } catch (error) {
     console.error('Signup error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Verify email route
+app.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    // Find user with matching token
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('verification_token', token)
+      .single();
+
+    if (error) throw error;
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Invalid verification token' });
+    }
+    
+    // Check if token has expired
+    if (new Date(user.token_expiry) < new Date()) {
+      return res.status(400).json({ error: 'Verification token has expired' });
+    }
+    
+    // Update user verification status
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        is_verified: true,
+        verification_token: null,
+        token_expiry: null
+      })
+      .eq('id', user.id);
+    
+    if (updateError) throw updateError;
+    
+    res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Email verification error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -179,6 +287,14 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
+    // Check if email is verified
+    if (!user.is_verified) {
+      return res.status(403).json({ 
+        error: 'Please verify your email before logging in',
+        message: 'Check your email for the verification link'
+      });
+    }
+    
     // Decrypt stored password and compare
     const decryptedPassword = decryptPassword(user.password);
     
@@ -196,6 +312,8 @@ app.post('/login', async (req, res) => {
     // Return user data without password
     const userData = { ...user };
     delete userData.password;
+    delete userData.verification_token;
+    delete userData.token_expiry;
     
     res.status(200).json({
       user: userData,
@@ -204,6 +322,132 @@ app.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Forgot password route
+app.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Get user by email
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+    
+    if (error) throw error;
+    
+    if (!user) {
+      // Return success even if user doesn't exist to prevent email enumeration
+      return res.status(200).json({ 
+        message: 'If an account exists with this email, you will receive password reset instructions.' 
+      });
+    }
+    
+    // Generate reset token
+    const resetToken = generateVerificationToken();
+    const tokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour from now
+    
+    // Update user with reset token
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        reset_token: resetToken,
+        reset_token_expiry: tokenExpiry
+      })
+      .eq('id', user.id);
+    
+    if (updateError) throw updateError;
+    
+    // Send reset email
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    
+    const mailOptions = {
+      from: process.env.GMAIL,
+      to: email,
+      subject: 'Reset Your Password - URL Shortener',
+      html: `
+        <h1>Password Reset Request</h1>
+        <p>You requested to reset your password. Click the link below to set a new password:</p>
+        <a href="${resetLink}">${resetLink}</a>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this, you can safely ignore this email.</p>
+      `
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      res.status(200).json({ 
+        message: 'If an account exists with this email, you will receive password reset instructions.' 
+      });
+    } catch (error) {
+      console.error('Error sending reset email:', error);
+      res.status(500).json({ error: 'Failed to send reset email' });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset password route
+app.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and password are required' });
+    }
+    
+    // Find user with matching token
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('reset_token', token)
+      .single();
+    
+    if (error) throw error;
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Invalid reset token' });
+    }
+    
+    // Compare the expiry with current time directly
+    const expiry = new Date(user.reset_token_expiry);
+    const now = new Date();
+    expiry.setHours(expiry.getHours() + 23); // Add 1 hour
+    expiry.setMinutes(expiry.getMinutes() + 59); // Add 1 hour
+    expiry.setSeconds(expiry.getSeconds() + 59); // Add 1 hour
+
+    if (now > expiry) {
+      return res.status(400).json({ error: 'Reset token has expired' });
+    }
+    
+    // Encrypt new password
+    const encryptedPassword = encryptPassword(password);
+    
+    // Update user password and clear reset token
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        password: encryptedPassword,
+        reset_token: null,
+        reset_token_expiry: null
+      })
+      .eq('id', user.id);
+    
+    if (updateError) throw updateError;
+    
+    res.status(200).json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -370,7 +614,7 @@ app.get('/links-alias/:alias', async (req, res) => {
     }
 
     let access_log = [...data.access_log, {
-      ip: req.ip,
+      ip: req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || req.ip,
       user_agent: req.headers['user-agent'],
       timestamp: new Date()
     }];

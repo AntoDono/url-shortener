@@ -1,7 +1,7 @@
-import { useForm } from "@refinedev/core";
+import { useCreate } from "@refinedev/core";
 import { Form, Input, Button, Typography, Card, Space, message } from "antd";
-import { useNavigate } from "react-router";
 import { useEffect } from "react";
+import useRouterProvider from "../providers/router-provider";
 
 const { Title } = Typography;
 
@@ -16,18 +16,10 @@ interface Link {
 }
 
 export const CreateLink = () => {
-  const navigate = useNavigate();
+  const { list } = useRouterProvider();
   
-  const { onFinish, mutation } = useForm<Link>({
-    meta:{
-      headers: {
-        "Authorization": `${localStorage.getItem("my_access_token")}`,
-      },
-    },
-    action: "create",
-    resource: "links",
-  });
-
+  const { mutate, isLoading, isSuccess, error } = useCreate<Link>();
+  
   // Function to validate URL
   const validateUrl = (_: any, value: string) => {
     if (!value) {
@@ -41,17 +33,25 @@ export const CreateLink = () => {
       return Promise.reject(new Error('Please enter a valid URL'));
     }
   };
+  
+  // Handle form submission
+  const handleSubmit = (values: { url: string; alias: string }) => {
+    mutate({
+      resource: "links",
+      values,
+    });
+  };
 
   // Handle success with useEffect to only run when success state changes
   useEffect(() => {
-    if (mutation.isSuccess) {
+    if (isSuccess) {
       message.success('Link created successfully');
       // Use a timeout to redirect after successful creation
-      const timer = setTimeout(() => navigate('/links'), 1000);
+      const timer = setTimeout(() => list("links"), 1000);
       // Clean up the timeout if component unmounts before timeout completes
       return () => clearTimeout(timer);
     }
-  }, [mutation.isSuccess, navigate]);
+  }, [isSuccess, list]);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -59,7 +59,7 @@ export const CreateLink = () => {
       <Card>
         <Form 
           layout="vertical" 
-          onFinish={(values) => onFinish(values)}
+          onFinish={handleSubmit}
         >
           <Form.Item 
             label="Original URL" 
@@ -83,18 +83,18 @@ export const CreateLink = () => {
           
           <div style={{ marginTop: "16px" }}>
             <Space>
-              <Button type="primary" htmlType="submit" loading={mutation.isLoading}>
+              <Button type="primary" htmlType="submit" loading={isLoading}>
                 Create Link
               </Button>
-              <Button onClick={() => navigate('/links')}>
+              <Button onClick={() => list("links")}>
                 Cancel
               </Button>
             </Space>
           </div>
           
-          {mutation.isError && (
+          {error && (
             <div style={{ color: "red", marginTop: "16px" }}>
-              Error: {mutation.error?.message}
+              Error: {error?.message}
             </div>
           )}
         </Form>

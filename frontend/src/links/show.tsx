@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link as RouterLink } from 'react-router';
+import React from 'react';
+import { useParams } from 'react-router';
 import { format } from 'date-fns';
+import { useOne } from '@refinedev/core';
 import { 
   Typography, 
   Descriptions, 
@@ -16,12 +17,10 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table/interface';
+import useRouterProvider from '../providers/router-provider';
 
 const { Title, Text } = Typography;
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-// Define the Link interface based on your requirements
 interface AccessLogEntry {
   ip: string;
   user_agent: string;
@@ -40,29 +39,14 @@ interface Link {
 
 export const LinkShow = () => {
   const { id } = useParams<{ id: string }>();
-  const [link, setLink] = useState<Link | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { list } = useRouterProvider();
+  
+  const { data, isLoading, error } = useOne<Link>({
+    resource: "links",
+    id: id || "",
+  });
 
-  useEffect(() => {
-    const fetchLink = async () => {
-      try {
-        // Replace with your actual API endpoint
-        const response = await fetch(`${API_URL}/links/${id}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch link data');
-        }
-        const data = await response.json();
-        setLink(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchLink();
-  }, [id]);
+  const link = data?.data;
 
   const columns: ColumnsType<AccessLogEntry> = [
     {
@@ -94,7 +78,7 @@ export const LinkShow = () => {
     },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}>
         <Spin size="large" tip="Loading..." />
@@ -103,7 +87,7 @@ export const LinkShow = () => {
   }
 
   if (error) {
-    return <Alert message="Error" description={error} type="error" showIcon />;
+    return <Alert message="Error" description={error?.message} type="error" showIcon />;
   }
 
   if (!link) {
@@ -113,8 +97,8 @@ export const LinkShow = () => {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Button type="link" icon={<ArrowLeftOutlined />} style={{ paddingLeft: 0 }}>
-          <RouterLink to="/links">Back to Links</RouterLink>
+        <Button type="link" icon={<ArrowLeftOutlined />} style={{ paddingLeft: 0 }} onClick={() => list("links")}>
+          Back to Links
         </Button>
 
         <Title level={2}>Link Details</Title>
